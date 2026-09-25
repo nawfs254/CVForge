@@ -1,69 +1,401 @@
-import Image from "next/image";
+"use client";
+
+import React, { useState } from "react";
+import {
+  FileDown,
+  Printer,
+  Copy,
+  ZoomIn,
+  ZoomOut,
+  Sparkles,
+  Layers,
+  Palette,
+  FileText,
+  Sliders,
+  LayoutTemplate,
+} from "lucide-react";
+import { cvData } from "../data/cvData";
+import { exportCVToDocx } from "../utils/docxExport";
+import { ResumeDocument } from "../components/ResumeDocument";
+import { TEMPLATE_OPTIONS, TemplateOption } from "../data/templates";
+
+interface ThemePreset {
+  id: string;
+  name: string;
+  primary: string;
+  gradient: string;
+}
+
+// Curated 4 top-tier preset gradients + custom color picker
+const THEME_PRESETS: ThemePreset[] = [
+  {
+    id: "sapphire",
+    name: "Sapphire Ocean",
+    primary: "#1e3a8a",
+    gradient: "linear-gradient(135deg, #1e3a8a 0%, #0284c7 100%)",
+  },
+  {
+    id: "emerald",
+    name: "Emerald Aurora",
+    primary: "#064e3b",
+    gradient: "linear-gradient(135deg, #064e3b 0%, #059669 100%)",
+  },
+  {
+    id: "crimson",
+    name: "Crimson Ruby",
+    primary: "#881337",
+    gradient: "linear-gradient(135deg, #881337 0%, #e11d48 100%)",
+  },
+  {
+    id: "amethyst",
+    name: "Royal Amethyst",
+    primary: "#4c1d95",
+    gradient: "linear-gradient(135deg, #4c1d95 0%, #9333ea 100%)",
+  },
+];
 
 export default function Home() {
+  const [activeTemplate, setActiveTemplate] = useState<TemplateOption>(
+    TEMPLATE_OPTIONS[0],
+  );
+  const [currentTheme, setCurrentTheme] = useState<ThemePreset>(
+    THEME_PRESETS[0],
+  );
+  const [useGradient, setUseGradient] = useState<boolean>(true);
+  const [isTwoPageView, setIsTwoPageView] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
+
+  const showToast = (message: string) => {
+    setToastMessage(message);
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  const handleSelectTemplate = (template: TemplateOption) => {
+    setActiveTemplate(template);
+    showToast(`Switched to "${template.name}" layout!`);
+  };
+
+  const handleSelectTheme = (theme: ThemePreset) => {
+    setCurrentTheme(theme);
+    showToast(`Applied ${theme.name} theme!`);
+  };
+
+  const handleCustomColorChange = (hex: string) => {
+    setCurrentTheme({
+      id: "custom",
+      name: "Custom Color",
+      primary: hex,
+      gradient: `linear-gradient(135deg, ${hex} 0%, #38bdf8 100%)`,
+    });
+  };
+
+  const handleExportDocx = async () => {
+    try {
+      setIsExportingDocx(true);
+      showToast("Generating DOCX with selected theme styling...");
+      const blob = await exportCVToDocx(cvData, currentTheme.primary);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Nawfs_Ul_Ahsun_CV_${activeTemplate.id}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast("CV exported as DOCX successfully!");
+    } catch (err) {
+      console.error("Failed to export docx:", err);
+      showToast("Error generating DOCX document.");
+    } finally {
+      setIsExportingDocx(false);
+    }
+  };
+
+  const handlePrintPdf = () => {
+    showToast("Opening Print / Save as PDF dialog...");
+    setTimeout(() => {
+      window.print();
+    }, 250);
+  };
+
+  const handleCopyAtsText = () => {
+    const plainText = `
+${cvData.personalInfo.name}
+${cvData.personalInfo.title}
+${cvData.personalInfo.location} | ${cvData.personalInfo.phone} | ${cvData.personalInfo.email}
+LinkedIn: ${cvData.personalInfo.links[0].url} | GitHub: ${cvData.personalInfo.links[1].url} | Portfolio: ${cvData.personalInfo.links[2].url}
+
+PROFESSIONAL SUMMARY
+${cvData.summary}
+
+TECHNICAL SKILLS
+${cvData.skills.map((s) => `${s.category}: ${s.items}`).join("\n")}
+
+PROFESSIONAL EXPERIENCE
+${cvData.experience
+  .map(
+    (e) =>
+      `${e.role}\n${e.company} | ${e.period}\n${e.bullets.map((b) => `• ${b.text}`).join("\n")}`,
+  )
+  .join("\n\n")}
+
+PROJECTS
+${[...cvData.projectsPage1, ...cvData.projectsPage2]
+  .map(
+    (p) =>
+      `${p.title}\nTechnologies: ${p.technologies}\n${p.bullets.map((b) => `• ${b.text}`).join("\n")}`,
+  )
+  .join("\n\n")}
+
+EDUCATION
+${cvData.education.map((edu) => `${edu.degree}\n${edu.institution} | ${edu.details}`).join("\n\n")}
+
+ADDITIONAL INTEREST
+${cvData.interests.map((i) => `${i.category}: ${i.items}`).join("\n")}
+
+REFERENCES
+${cvData.references || "Available Upon Request"}
+    `.trim();
+
+    navigator.clipboard.writeText(plainText).then(() => {
+      showToast("Plain text CV copied to clipboard for ATS!");
+    });
+  };
+
+  const handleZoom = (delta: number) => {
+    setZoomLevel((prev) => {
+      const next = Math.round((prev + delta) * 10) / 10;
+      return Math.min(Math.max(next, 0.7), 1.3);
+    });
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen flex flex-col">
+      {/* Top Application Header: Left (Brand), Center (Buttons), Right (Colors) */}
+      <header className="app-header single-row-header no-print">
+        {/* Left: Brand section */}
+        <div className="brand-section">
+          <div
+            className="brand-icon-wrapper"
+            style={{
+              background: currentTheme.gradient,
+              boxShadow: `0 0 12px ${currentTheme.primary}77`,
+            }}
+          >
+            <FileText size={18} />
+          </div>
+          <div className="brand-text-block">
+            <div className="brand-title">CVForge AI</div>
+            <div className="brand-sub">Nawfs Ul Ahsun</div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* Center: Action Buttons with uniform heights */}
+        <div className="toolbar-center-actions">
+          {/* Zoom controls */}
+          <div className="action-control-item btn-group compact-group">
+            <button
+              onClick={() => handleZoom(-0.1)}
+              className="toolbar-btn compact-btn"
+              title="Zoom Out"
+            >
+              <ZoomOut size={14} />
+            </button>
+            <span className="zoom-text">{Math.round(zoomLevel * 100)}%</span>
+            <button
+              onClick={() => handleZoom(0.1)}
+              className="toolbar-btn compact-btn"
+              title="Zoom In"
+            >
+              <ZoomIn size={14} />
+            </button>
+          </div>
+
+          {/* View mode toggle */}
+          <div className="action-control-item btn-group compact-group">
+            <button
+              onClick={() => setIsTwoPageView(true)}
+              className={`toolbar-btn compact-btn ${
+                isTwoPageView ? "active" : ""
+              }`}
+              title="2-Page View"
+            >
+              <Layers size={13} />
+              <span>2-Page</span>
+            </button>
+            <button
+              onClick={() => setIsTwoPageView(false)}
+              className={`toolbar-btn compact-btn ${
+                !isTwoPageView ? "active" : ""
+              }`}
+              title="Continuous View"
+            >
+              <span>Scroll</span>
+            </button>
+          </div>
+
+          {/* Copy Plain Text */}
+          <button
+            onClick={handleCopyAtsText}
+            className="action-control-item btn-secondary-export uniform-btn"
+            title="Copy CV Plain Text (ATS-Friendly)"
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <Copy size={14} />
+            <span>Copy ATS</span>
+          </button>
+
+          {/* Export PDF / Print */}
+          <button
+            onClick={handlePrintPdf}
+            className="action-control-item btn-secondary-export uniform-btn"
+            title="Save as PDF or Print"
           >
-            Documentation
-          </a>
+            <Printer size={14} />
+            <span>PDF</span>
+          </button>
+
+          {/* Export as DOCX */}
+          {/*
+          <button
+            onClick={handleExportDocx}
+            disabled={isExportingDocx}
+            className="action-control-item btn-primary-export uniform-btn primary-btn"
+            style={{
+              background: currentTheme.gradient,
+              boxShadow: `0 4px 12px ${currentTheme.primary}55`,
+            }}
+            title="Export as Microsoft Word (.docx)"
+          >
+            <FileDown size={15} />
+            <span>
+              {isExportingDocx ? "Exporting..." : "Export as CV / docx"}
+            </span>
+          </button>
+          */}
+        </div>
+
+        {/* Right: Colors & Gradient Picker */}
+        <div className="toolbar-right-palette">
+          <div className="color-palette-bar compact-palette">
+            <span className="palette-label" title="Theme Color">
+              <Palette size={13} />
+            </span>
+            <div className="palette-swatches">
+              {THEME_PRESETS.map((theme) => (
+                <button
+                  key={theme.id}
+                  onClick={() => handleSelectTheme(theme)}
+                  className={`color-swatch-btn ${
+                    currentTheme.id === theme.id ? "selected" : ""
+                  }`}
+                  style={{ background: theme.gradient }}
+                  title={`${theme.name} (Click to apply)`}
+                />
+              ))}
+
+              {/* Custom Color Input */}
+              <label className="custom-color-picker" title="Pick Custom Color">
+                <input
+                  type="color"
+                  value={currentTheme.primary}
+                  onChange={(e) => handleCustomColorChange(e.target.value)}
+                  className="color-input-native"
+                />
+                <span
+                  className="custom-color-indicator"
+                  style={{ backgroundColor: currentTheme.primary }}
+                />
+              </label>
+            </div>
+
+            {/* Toggle Gradient Mode vs Solid Color */}
+            <button
+              onClick={() => setUseGradient(!useGradient)}
+              className={`gradient-toggle-btn compact-toggle ${
+                useGradient ? "active" : ""
+              }`}
+              title="Toggle Gradient Text vs Solid Text"
+            >
+              <Sliders size={12} />
+              <span>{useGradient ? "Gradient" : "Solid"}</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Quick Template Switcher Bar */}
+      <nav
+        className="template-pills-bar no-print"
+        aria-label="Template Presets"
+      >
+        <div className="pills-bar-content">
+          <span className="pills-bar-title">
+            <LayoutTemplate size={13} style={{ color: "#60a5fa" }} />
+            <span>Design Styles:</span>
+          </span>
+          <div className="pills-scroll-container">
+            {TEMPLATE_OPTIONS.map((tmpl) => (
+              <button
+                key={tmpl.id}
+                onClick={() => handleSelectTemplate(tmpl)}
+                className={`template-pill-chip ${
+                  activeTemplate.id === tmpl.id ? "active" : ""
+                }`}
+                style={
+                  activeTemplate.id === tmpl.id
+                    ? {
+                        borderColor: currentTheme.primary,
+                        boxShadow: `0 0 10px ${currentTheme.primary}44`,
+                      }
+                    : undefined
+                }
+              >
+                <span className="pill-chip-name">{tmpl.name}</span>
+                {tmpl.badge && (
+                  <span className="pill-chip-badge">{tmpl.badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Workbench Canvas */}
+      <main className="resume-workbench">
+        <div
+          className="resume-scale-wrapper"
+          style={{
+            transform: `scale(${zoomLevel})`,
+            transformOrigin: "top center",
+            transition: "transform 0.15s ease-out",
+          }}
+        >
+          <ResumeDocument
+            data={cvData}
+            isTwoPageView={isTwoPageView}
+            primaryColor={currentTheme.primary}
+            gradient={currentTheme.gradient}
+            useGradient={useGradient}
+            templateId={activeTemplate.id}
+          />
         </div>
       </main>
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <aside
+          className="toast-banner no-print"
+          role="status"
+          aria-live="polite"
+        >
+          <Sparkles size={16} color="#60a5fa" />
+          <span>{toastMessage}</span>
+        </aside>
+      )}
     </div>
   );
 }
