@@ -1337,26 +1337,25 @@ body {
     padding: 6px 10px !important;
   }
   .resume-workbench {
-    padding: 16px 8px 40px !important;
-    overflow-x: auto;
+    padding: 16px 4px 60px !important;
+    overflow-x: hidden;
   }
-  .resume-sheet {
-    width: 100% !important;
-    max-width: calc(100vw - 16px) !important;
-    min-height: auto !important;
-    padding: 12mm 8mm !important;
-  }
-  .sidebar-layout-container {
-    grid-template-columns: 1fr !important;
-  }
-  .sidebar-column {
-    border-right: none !important;
-    border-bottom: 1px solid #e2e8f0;
-    padding: 10mm 8mm !important;
-  }
-  .sidebar-main-content {
-    padding: 10mm 8mm !important;
-  }
+}
+
+/* Scaler container for exact PDF fidelity across all devices */
+.resume-scaler-outer {
+  position: relative;
+  margin: 0 auto;
+  max-width: 100%;
+}
+
+.resume-scaler-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 794px;
+  transform-origin: top left;
+  transition: transform 0.15s ease-out;
 }
 
 /* Print Stylesheet */
@@ -1408,11 +1407,18 @@ body {
     display: block !important;
   }
 
-  .resume-scale-wrapper {
-    transform: none !important;
+  .resume-scaler-outer {
     width: 210mm !important;
+    height: auto !important;
+    max-width: none !important;
     margin: 0 !important;
-    padding: 0 !important;
+    position: static !important;
+  }
+
+  .resume-scaler-inner {
+    width: 210mm !important;
+    transform: none !important;
+    position: static !important;
   }
 
   .resume-container {

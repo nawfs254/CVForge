@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   FileDown,
   Printer,
@@ -64,8 +64,48 @@ export default function Home() {
   const [useGradient, setUseGradient] = useState<boolean>(true);
   const [isTwoPageView, setIsTwoPageView] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [autoScale, setAutoScale] = useState<number>(1);
+  const [contentHeight, setContentHeight] = useState<number>(2340);
+  const resumeContainerRef = useRef<HTMLDivElement>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
+
+  // Auto-fit scale to viewport width on mobile/tablet devices
+  useEffect(() => {
+    const updateScale = () => {
+      // 210mm in standard CSS 96dpi pixels is ~794px
+      const a4Width = 794;
+      const screenWidth = window.innerWidth;
+      if (screenWidth < 840) {
+        const padding = screenWidth < 480 ? 16 : 28;
+        const available = screenWidth - padding;
+        const fitRatio = Math.min(available / a4Width, 1);
+        setAutoScale(Math.round(fitRatio * 1000) / 1000);
+      } else {
+        setAutoScale(1);
+      }
+    };
+
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
+
+  // Track height of resume document dynamically to size outer wrapper accurately
+  useEffect(() => {
+    if (!resumeContainerRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.height > 0) {
+          setContentHeight(Math.round(entry.contentRect.height));
+        }
+      }
+    });
+    ro.observe(resumeContainerRef.current);
+    return () => ro.disconnect();
+  }, [activeTemplate, isTwoPageView]);
+
+  const effectiveScale = Math.round(zoomLevel * autoScale * 100) / 100;
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -169,7 +209,7 @@ ${cvData.references || "Available Upon Request"}
   const handleZoom = (delta: number) => {
     setZoomLevel((prev) => {
       const next = Math.round((prev + delta) * 10) / 10;
-      return Math.min(Math.max(next, 0.7), 1.3);
+      return Math.min(Math.max(next, 0.5), 1.5);
     });
   };
 
@@ -367,21 +407,30 @@ ${cvData.references || "Available Upon Request"}
       {/* Main Workbench Canvas */}
       <main className="resume-workbench">
         <div
-          className="resume-scale-wrapper"
+          className="resume-scaler-outer"
           style={{
-            transform: `scale(${zoomLevel})`,
-            transformOrigin: "top center",
-            transition: "transform 0.15s ease-out",
+            width: `${Math.round(794 * effectiveScale)}px`,
+            height: `${Math.round(contentHeight * effectiveScale)}px`,
           }}
         >
-          <ResumeDocument
-            data={cvData}
-            isTwoPageView={isTwoPageView}
-            primaryColor={currentTheme.primary}
-            gradient={currentTheme.gradient}
-            useGradient={useGradient}
-            templateId={activeTemplate.id}
-          />
+          <div
+            ref={resumeContainerRef}
+            className="resume-scaler-inner"
+            style={{
+              width: "794px",
+              transform: `scale(${effectiveScale})`,
+              transformOrigin: "top left",
+            }}
+          >
+            <ResumeDocument
+              data={cvData}
+              isTwoPageView={isTwoPageView}
+              primaryColor={currentTheme.primary}
+              gradient={currentTheme.gradient}
+              useGradient={useGradient}
+              templateId={activeTemplate.id}
+            />
+          </div>
         </div>
       </main>
 
